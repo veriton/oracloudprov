@@ -1,7 +1,7 @@
 ---
   template:
     templateName: oracloudprov-SOACS-IPNet
-    templateVersion: 1.0.5
+    templateVersion: 1.0.6
     templateDescription: "Provision SOA Cloud Service and Database Cloud Service instances using Oracle Storage Cloud Service. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template. Derived from Oracle-SOACS-DBCS-Template 1.1.11"
     parameters:
       publicKeyText:
@@ -32,10 +32,6 @@
         minLength: 3
         maxLength: 20
         mandatory: true
-      storageContainerBase:
-        label: Base part of storage container name
-        type: String
-        default: { "Fn::Join": ["", [Storage-, PUTidentityDomain, /, PUTserviceName]] }
       cloudStorageUsername:
         label: Storage Username
         description: Oracle Cloud username with Storage read/write permissions
@@ -103,45 +99,32 @@
         mandatory: true
         sensitive: true
         constraintDescription: "Password must be between 8 and 30 characters with at least one lower case letter, one upper case letter, one number and one special character (_,#). For example, Ach1z0#d"    
-#      backupStorageContainer:
-#        label: {
-#          "cloudStorageContainer": "Cloud Storage Container", 
-#          "cloudStorageUser": "Username", 
-#          "cloudStoragePassword": "Password"
-#          }
-#        description: {
-#          "cloudStorageContainer": "Name of the Exiting or new Oracle Storage Cloud Service container to be created for SOACS and DBCS backup, recovery. The name has to be in the form https|http://<storagedomain>/{version}/<schema name>/<container name> or <storage service name>-<identity domain name>/<container name>. e.g:storagesvc999-usoracleaccoutrial00999/backupContainer. If given container does not exist a new container will be created.", 
-#          "cloudStorageUser": "Enter cloud storage container user name.", 
-#          "cloudStoragePassword": "Enter password for cloud storage container user."
-#          }
-#        type: Storage
-#        mandatory: true
     parameterGroups:
       - label: Database Cloud
         parameters: [ dbSid, dbVersion ]
       - label: Access
         parameters: [ identityDomain, adminUserName, commonPwd, publicKeyText ]
       - label: Storage Cloud (for Backup)
-        parameters: [ storageContainerBase, cloudStorageUsername, cloudStoragePassword ]
+        parameters: [ cloudStorageUsername, cloudStoragePassword ]
       - label: Data Center
         parameters: [ cloudRegion, ipNetwork ]
     resources:
       backupContainerDbs:
         type: OSS.Container
         parameters:
-          cloudStorageContainer: { "Fn::Join": ["", ["Fn::GetParam": storageContainerBase, dbs]] }
+          cloudStorageContainer: { "Fn::Join": ["", [Storage-, { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'dbs' ] ] }
           cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
           cloudStoragePassword: { "Fn::GetParam": cloudStoragePassword }
       backupContainerSob:
         type: OSS.Container
         parameters:
-          cloudStorageContainer: { "Fn::Join": ["", ["Fn::GetParam": storageContainerBase, sob]] }
+          cloudStorageContainer: { "Fn::Join": ["", [Storage-, { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'sob' ] ] }
           cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
           cloudStoragePassword: { "Fn::GetParam": cloudStoragePassword }
       dbcs: 
         type: dbaas
         parameters:
-          serviceName: { "Fn::Join": ["", ["Fn::GetParam": storageContainerBase, dbs]] }
+          serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, dbs]] }
           version: { "Fn::GetParam": dbVersion }
           level: PAAS
           edition: SE 
@@ -159,7 +142,7 @@
               timezone: UTC
               charset: AL32UTF8
               ncharset: AL16UTF16
-              cloudStorageContainer: { "Fn::Join": ["", ["Fn::GetParam": storageContainerBase, dbs]] }
+              cloudStorageContainer: { "Fn::Join": ["", [Storage-, { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'dbs' ] ] }
               cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
               cloudStoragePwd: { "Fn::GetParam": cloudStoragePassword }
               usableStorage: 25
@@ -176,7 +159,7 @@
             enableAdminConsole: true
             vmPublicKeyText: { "Fn::GetParam": publicKeyText }
             serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, sob]] }
-            cloudStorageContainer: { "Fn::Join": ["", ["Fn::GetParam": storageContainerBase, sob]] }
+            cloudStorageContainer: { "Fn::Join": ["", [Storage-, { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'sob' ] ] }
             cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
             cloudStoragePassword: { "Fn::GetParam": cloudStoragePassword }
             serviceVersion: 12cRelease212
