@@ -1,8 +1,8 @@
 ---
   template:
     templateName: oracloudprov-SOACS-IPNet
-    templateVersion: 1.0.6
-    templateDescription: "Provision SOA Cloud Service and Database Cloud Service instances using Oracle Storage Cloud Service. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template. Derived from Oracle-SOACS-DBCS-Template 1.1.11"
+    templateVersion: 1.0.7
+    templateDescription: "SOA CS (SOA/OSB) with Repo DB. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template. Derived from Oracle-SOACS-DBCS-Template 1.1.11"
     parameters:
       publicKeyText:
         label: SSH Public Key
@@ -27,7 +27,7 @@
         default: true
       identityDomain:
         label: Identity Domain
-        description: Identity Domain / Tenant name, e.g. a12345678
+        description: Identity Domain, e.g. a123456 or idcs-1234567890abcdef1234567890abcdef
         type: String
         minLength: 3
         maxLength: 20
@@ -80,8 +80,8 @@
         allowedPattern: "^[a-zA-Z][a-zA-Z0-9]*$"
         constraintDescription: "Database name can contain up to 8 characters; must begin with a letter and can contain only letters and numbers. "
       dbVersion:
-        label: DBCS Version
-        description: "Select a DBCS Version"
+        label: DBaaS Version
+        description: "Select a DBaaS Version"
         type: String
         default: 12.2.0.1
         allowedValues: {
@@ -89,9 +89,18 @@
           "12.1.0.2": "Oracle Database 12c Release 1",
           "12.2.0.1": "Oracle Database 12c Release 2"
         }
+      dbShape:
+        label: DBaaS VM shape
+        description: "Select a shape (CPU/memory) for the single DBaaS VM"
+        type: String
+        default: oc3
+        allowedValues: {
+          "oc3": "1 OCPU, General Purpose",
+          "oc1m": "1 OCPU, High Memory"
+      }
       commonPwd:
-        label: Password (to access SOACS and DBCS)
-        description: "Password to access SOACS and DBCS. Password must be between 8 and 30 characters with at least one lower case letter, one upper case letter, one number and one special character (_,#). For example, Ach1z0#d"
+        label: Password (to access SOACS and DBaaS)
+        description: "Password to access SOACS and DBaaS. Password must be between 8 and 30 characters with at least one lower case letter, one upper case letter, one number and one special character (_,#). For example, Ach1z0#d"
         type: Password
         minLength: 8
         maxLength: 30
@@ -101,7 +110,7 @@
         constraintDescription: "Password must be between 8 and 30 characters with at least one lower case letter, one upper case letter, one number and one special character (_,#). For example, Ach1z0#d"    
     parameterGroups:
       - label: Database Cloud
-        parameters: [ dbSid, dbVersion ]
+        parameters: [ dbSid, dbVersion, dbShape ]
       - label: Access
         parameters: [ identityDomain, adminUserName, commonPwd, publicKeyText ]
       - label: Storage Cloud (for Backup)
@@ -109,13 +118,13 @@
       - label: Data Center
         parameters: [ cloudRegion, ipNetwork ]
     resources:
-      backupContainerDbs:
+      backupDbs:
         type: OSS.Container
         parameters:
           cloudStorageContainer: { "Fn::Join": ["", [Storage-, { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'dbs' ] ] }
           cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
           cloudStoragePassword: { "Fn::GetParam": cloudStoragePassword }
-      backupContainerSob:
+      backupSob:
         type: OSS.Container
         parameters:
           cloudStorageContainer: { "Fn::Join": ["", [Storage-, { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'sob' ] ] }
@@ -128,7 +137,7 @@
           version: { "Fn::GetParam": dbVersion }
           level: PAAS
           edition: SE 
-          shape: oc3
+          shape: { "Fn::GetParam": dbShape }
           region: { "Fn::GetParam": cloudRegion }
           ipNetwork: { "Fn::GetParam": ipNetwork }
           vmPublicKeyText: { "Fn::GetParam": publicKeyText }
@@ -147,7 +156,7 @@
               cloudStoragePwd: { "Fn::GetParam": cloudStoragePassword }
               usableStorage: 25
         depends_on: 
-          - backupContainerDbs
+          - backupDbs
       soacs: 
         type: SOA
         parameters: 
@@ -188,7 +197,7 @@
                 listenerType: http
                 loadBalancingPolicy: ROUND_ROBIN
         depends_on:
-          - backupContainerSob
+          - backupSob
           - dbcs
     attributes:
         OraConnectString:
