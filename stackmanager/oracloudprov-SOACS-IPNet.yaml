@@ -1,8 +1,8 @@
 ---
   template:
     templateName: oracloudprov-SOACS-IPNet
-    templateVersion: 1.0.8
-    templateDescription: "SOA CS (SOA/OSB) with Repo DB. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template. Derived from Oracle-SOACS-DBCS-Template 1.1.11"
+    templateVersion: 1.0.9
+    templateDescription: "SOA CS (SOA/OSB) with Repo DB. Tested with CSM 18.1.6. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template. Derived from Oracle-SOACS-DBCS-Template 1.1.11"
     parameters:
       publicKeyText:
         label: SSH Public Key
@@ -27,10 +27,10 @@
         default: true
       identityDomain:
         label: Identity Domain
-        description: Identity Domain, e.g. a123456 or idcs-1234567890abcdef1234567890abcdef
+        description: Identity Domain, e.g. a123456 or idcs-0123456789abcdef01234567890abcdef
         type: String
         minLength: 3
-        maxLength: 20
+        maxLength: 37
         mandatory: true
       cloudStorageUsername:
         label: Storage Username
