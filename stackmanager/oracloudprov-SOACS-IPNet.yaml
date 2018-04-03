@@ -1,7 +1,7 @@
 ---
   template:
     templateName: oracloudprov-SOACS-IPNet
-    templateVersion: 1.0.7
+    templateVersion: 1.0.8
     templateDescription: "SOA CS (SOA/OSB) with Repo DB. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template. Derived from Oracle-SOACS-DBCS-Template 1.1.11"
     parameters:
       publicKeyText:
@@ -133,7 +133,7 @@
       dbcs: 
         type: dbaas
         parameters:
-          serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, dbs]] }
+          serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, 'dbs' ] ] }
           version: { "Fn::GetParam": dbVersion }
           level: PAAS
           edition: SE 
@@ -155,7 +155,7 @@
               cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
               cloudStoragePwd: { "Fn::GetParam": cloudStoragePassword }
               usableStorage: 25
-        depends_on: 
+        depends_on:
           - backupDbs
       soacs: 
         type: SOA
