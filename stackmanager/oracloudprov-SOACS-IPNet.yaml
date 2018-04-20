@@ -1,7 +1,7 @@
 ---
   template:
     templateName: oracloudprov-SOACS-IPNet
-    templateVersion: 1.0.9
+    templateVersion: 1.0.12
     templateDescription: "SOA CS (SOA/OSB) with Repo DB. Tested with CSM 18.1.6. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template. Derived from Oracle-SOACS-DBCS-Template 1.1.11"
     parameters:
       publicKeyText:
@@ -27,7 +27,7 @@
         default: true
       identityDomain:
         label: Identity Domain
-        description: Identity Domain, e.g. a123456 or idcs-0123456789abcdef01234567890abcdef
+        description: Identity Domain, e.g. a123456 or idcs-0123456789abcdef0123456789abcdef
         type: String
         minLength: 3
         maxLength: 37
@@ -70,7 +70,7 @@
      # notificationEmail:
      # isActive:
      # publishTo:
-      dbSid: 
+      dbSid:
         label: DB Name (SID)
         description: "Database name of your choice, up to 8 characters; must begin with a letter and can contain only letters and numbers."
         type: String
@@ -121,16 +121,18 @@
       backupDbs:
         type: OSS.Container
         parameters:
-          cloudStorageContainer: { "Fn::Join": ["", [Storage-, { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'dbs' ] ] }
+          # Bug in OSS.Container resource in 18.1.6 when used on IDCS-backed PaaS - use _account.soa.cloudstorageuri instead of creating storage API URL
+          # cloudStorageContainer: { "Fn::Join": ["", [ 'https://', { "Fn::GetParam": identityDomain }, '.storage.oraclecloud.com/v1/Storage-', { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'dbs' ] ] }
+          cloudStorageContainer: {"Fn::Join": ["", [{"Fn::GetParam": _account.soa.cloudstorageuri},{ "Fn::GetParam": serviceName }, dbs] ] }
           cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
           cloudStoragePassword: { "Fn::GetParam": cloudStoragePassword }
       backupSob:
         type: OSS.Container
         parameters:
-          cloudStorageContainer: { "Fn::Join": ["", [Storage-, { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'sob' ] ] }
+          cloudStorageContainer: {"Fn::Join": ["", [{"Fn::GetParam": _account.soa.cloudstorageuri},{ "Fn::GetParam": serviceName }, sob] ] }
           cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
           cloudStoragePassword: { "Fn::GetParam": cloudStoragePassword }
-      dbcs: 
+      dbcs:
         type: dbaas
         parameters:
           serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, 'dbs' ] ] }
@@ -151,24 +153,24 @@
               timezone: UTC
               charset: AL32UTF8
               ncharset: AL16UTF16
-              cloudStorageContainer: { "Fn::Join": ["", [Storage-, { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'dbs' ] ] }
+              cloudStorageContainer: {"Fn::Join": ["", [{"Fn::GetParam": _account.soa.cloudstorageuri},{ "Fn::GetParam": serviceName }, dbs] ] }
               cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
               cloudStoragePwd: { "Fn::GetParam": cloudStoragePassword }
               usableStorage: 25
         depends_on:
           - backupDbs
-      soacs: 
+      soacs:
         type: SOA
-        parameters: 
+        parameters:
           serviceParameters:
             purchasePack: soaosbb2b
             edition: SUITE
             vmUser: opc
             serviceLevel: PAAS
-            enableAdminConsole: true
+            enableAdminConsole: false
             vmPublicKeyText: { "Fn::GetParam": publicKeyText }
             serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, sob]] }
-            cloudStorageContainer: { "Fn::Join": ["", [Storage-, { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'sob' ] ] }
+            cloudStorageContainer: {"Fn::Join": ["", [{"Fn::GetParam": _account.soa.cloudstorageuri},{ "Fn::GetParam": serviceName }, sob] ] }
             cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
             cloudStoragePassword: { "Fn::GetParam": cloudStoragePassword }
             serviceVersion: 12cRelease212
