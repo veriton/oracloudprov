@@ -1,6 +1,6 @@
 template:
   templateName: oracloudprov-SOACS-IPNet
-  templateVersion: 1.0.13
+  templateVersion: 1.1.0
   templateDescription: >-
     SOA CS (SOA/OSB) with Repo DB. Tested with CSM 18.2.2. **WARNING** You will
     be billed for the Cloud resources created if you create a Cloud Stack from
@@ -35,13 +35,14 @@ template:
       type: boolean
       mandatory: false
       default: true
-    identityDomain:
-      label: Identity Domain
-      description: 'Identity Domain, e.g. a123456 or idcs-0123456789abcdef01234567890abcdef'
-      type: String
-      minLength: 3
-      maxLength: 37
-      mandatory: true
+    soaClusterSize:
+      label: SOA Cluster Size
+      description: Number of nodes you would like in SOA cluster
+      type: number
+      minValue: 1
+      maxValue: 8
+      mandatory: false
+      default: 1
     cloudStorageUsername:
       label: Storage Username
       description: Oracle Cloud username with Storage read/write permissions
@@ -122,14 +123,8 @@ template:
         case letter, one upper case letter, one number and one special character
         (_,#). For example, Ach1z0#d
   parameterGroups:
-    - label: Database Cloud
-      parameters:
-        - dbSid
-        - dbVersion
-        - dbShape
     - label: Access
       parameters:
-        - identityDomain
         - adminUserName
         - commonPwd
         - publicKeyText
@@ -141,6 +136,15 @@ template:
       parameters:
         - cloudRegion
         - ipNetwork
+    - label: Database Cloud
+      parameters:
+        - dbSid
+        - dbVersion
+        - dbShape
+    - label: SOA Cloud
+      parameters:
+        - provisionOTD
+        - soaClusterSize
   attributes:
     OraConnectString:
       value:
@@ -163,7 +167,7 @@ template:
           'Fn::GetParam': cloudStorageUsername
         cloudStoragePassword:
           'Fn::GetParam': cloudStoragePassword
-    backupSob:
+    backupSoa:
       type: OSS.Container
       parameters:
         cloudStorageContainer:
@@ -171,7 +175,7 @@ template:
             - ''
             - - 'Fn::GetParam': _account.soa.cloudstorageuri
               - 'Fn::GetParam': serviceName
-              - sob
+              - soa
         cloudStorageUser:
           'Fn::GetParam': cloudStorageUsername
         cloudStoragePassword:
@@ -235,13 +239,13 @@ template:
             'Fn::Join':
               - ''
               - - 'Fn::GetParam': serviceName
-                - sob
+                - soa
           cloudStorageContainer:
             'Fn::Join':
               - ''
               - - 'Fn::GetParam': _account.soa.cloudstorageuri
                 - 'Fn::GetParam': serviceName
-                - sob
+                - soa
           cloudStorageUser:
             'Fn::GetParam': cloudStorageUsername
           cloudStoragePassword:
@@ -257,7 +261,8 @@ template:
             'Fn::GetParam': ipNetwork
         componentParameters:
           WLS:
-            managedServerCount: 1
+            managedServerCount:
+              'Fn::GetParam': soaClusterSize
             domainPartitionCount: 1
             adminUserName:
               'Fn::GetParam': adminUserName
@@ -283,5 +288,5 @@ template:
             listenerType: http
             loadBalancingPolicy: ROUND_ROBIN
       depends_on:
-        - backupSob
+        - backupSoa
         - dbcs
