@@ -1,6 +1,6 @@
 template:
   templateName: oracloudprov-SOACS-IPNet
-  templateVersion: 1.1.0
+  templateVersion: 1.1.1
   templateDescription: >-
     SOA CS (SOA/OSB) with Repo DB. Tested with CSM 18.2.2. **WARNING** You will
     be billed for the Cloud resources created if you create a Cloud Stack from
@@ -162,7 +162,7 @@ template:
             - ''
             - - 'Fn::GetParam': _account.soa.cloudstorageuri
               - 'Fn::GetParam': serviceName
-              - dbs
+              - dbscont
         cloudStorageUser:
           'Fn::GetParam': cloudStorageUsername
         cloudStoragePassword:
@@ -175,7 +175,7 @@ template:
             - ''
             - - 'Fn::GetParam': _account.soa.cloudstorageuri
               - 'Fn::GetParam': serviceName
-              - soa
+              - soacont
         cloudStorageUser:
           'Fn::GetParam': cloudStorageUsername
         cloudStoragePassword:
@@ -216,7 +216,7 @@ template:
                 - ''
                 - - 'Fn::GetParam': _account.soa.cloudstorageuri
                   - 'Fn::GetParam': serviceName
-                  - dbs
+                  - dbscont
             cloudStorageUser:
               'Fn::GetParam': cloudStorageUsername
             cloudStoragePwd:
@@ -245,7 +245,7 @@ template:
               - ''
               - - 'Fn::GetParam': _account.soa.cloudstorageuri
                 - 'Fn::GetParam': serviceName
-                - soa
+                - soacont
           cloudStorageUser:
             'Fn::GetParam': cloudStorageUsername
           cloudStoragePassword:
