@@ -1,207 +1,287 @@
----
-  template:
-    templateName: oracloudprov-SOACS-IPNet
-    templateVersion: 1.0.12
-    templateDescription: "SOA CS (SOA/OSB) with Repo DB. Tested with CSM 18.1.6. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template. Derived from Oracle-SOACS-DBCS-Template 1.1.11"
-    parameters:
-      publicKeyText:
-        label: SSH Public Key
-        description: Click Edit to generate a new key pair, enter an existing public keys value or upload a new public key.
-        type: ssh
-        mandatory: true
-        sensitive: true
-      adminUserName:
-        label: Administrator Username
-        description: "Your choice of name for the SOACS administration user. Must be between 8 and 128 ASCII characters and cannot contain a tab, brackets, parentheses or the characters , < > & # | ?"
-        type: String
-        minLength: 8
-        maxLength: 128
-        default: weblogic
-        allowedPattern: "[\\p{Print}&&[^',<>#&|\\?\\(\\)\\{\\}\t ]]++"
-        constraintDescription: "SOACS administration username must be between 8 and 128 ASCII characters and cannot contain a tab, brackets, parentheses or the characters , < > & # | ?"   
-      provisionOTD:
-        label: Provision OTD
-        description: Would you like to Provision OTD?
-        type: boolean
-        mandatory: false
-        default: true
-      identityDomain:
-        label: Identity Domain
-        description: Identity Domain, e.g. a123456 or idcs-0123456789abcdef0123456789abcdef
-        type: String
-        minLength: 3
-        maxLength: 37
-        mandatory: true
-      cloudStorageUsername:
-        label: Storage Username
-        description: Oracle Cloud username with Storage read/write permissions
-        type: String
-        minLength: 10
-        maxLength: 20
-        mandatory: true
-      cloudStoragePassword:
-        label: Storage Password
-        description: Password for Oracle Cloud storage user
-        type: String
-        minLength: 7
-        maxLength: 20
-        mandatory: true
-        sensitive: true
-      cloudRegion:
-        label: Region / Site
-        description: Name of the availability domain where the compute resources/IP network is located
-        type: Region
-        mandatory: true
-        default: gbcom-south-1
-      ipNetwork:
-        label: IP Network
-        description: Name of the existing IP Network to be used (NB this template cannot be used on the Shared Network). For now use the full reference, e.g. /Compute-a511724/simon/gbs1-int1
-        # Name can only contain alphanumeric, hyphens and underscores. Must not begin or end with hyphen or underscore.
-        type: String
-        minLength: 3
-        maxLength: 100
-        mandatory: true
-     #
-     # additional parameters that may be useful (from Oracle original template)
-     #
-     # subnet:
-     # isManaged:
-     # enableNotification:
-     # notificationEmail:
-     # isActive:
-     # publishTo:
-      dbSid:
-        label: DB Name (SID)
-        description: "Database name of your choice, up to 8 characters; must begin with a letter and can contain only letters and numbers."
-        type: String
-        minLength: 1
-        maxLength: 8
-        default: ORCL
-        allowedPattern: "^[a-zA-Z][a-zA-Z0-9]*$"
-        constraintDescription: "Database name can contain up to 8 characters; must begin with a letter and can contain only letters and numbers. "
-      dbVersion:
-        label: DBaaS Version
-        description: "Select a DBaaS Version"
-        type: String
-        default: 12.2.0.1
-        allowedValues: {
-          "11.2.0.4": "Oracle Database 11g Release 2",
-          "12.1.0.2": "Oracle Database 12c Release 1",
-          "12.2.0.1": "Oracle Database 12c Release 2"
-        }
-      dbShape:
-        label: DBaaS VM shape
-        description: "Select a shape (CPU/memory) for the single DBaaS VM"
-        type: String
-        default: oc3
-        allowedValues: {
-          "oc3": "1 OCPU, General Purpose",
-          "oc1m": "1 OCPU, High Memory"
-      }
-      commonPwd:
-        label: Password (to access SOACS and DBaaS)
-        description: "Password to access SOACS and DBaaS. Password must be between 8 and 30 characters with at least one lower case letter, one upper case letter, one number and one special character (_,#). For example, Ach1z0#d"
-        type: Password
-        minLength: 8
-        maxLength: 30
-        allowedPattern: "^(?=.*?[A-Z])(?=.*?[a-z])(?=.*[0-9])[a-zA-Z]([a-zA-Z0-9_#])+$"
-        mandatory: true
-        sensitive: true
-        constraintDescription: "Password must be between 8 and 30 characters with at least one lower case letter, one upper case letter, one number and one special character (_,#). For example, Ach1z0#d"    
-    parameterGroups:
-      - label: Database Cloud
-        parameters: [ dbSid, dbVersion, dbShape ]
-      - label: Access
-        parameters: [ identityDomain, adminUserName, commonPwd, publicKeyText ]
-      - label: Storage Cloud (for Backup)
-        parameters: [ cloudStorageUsername, cloudStoragePassword ]
-      - label: Data Center
-        parameters: [ cloudRegion, ipNetwork ]
-    resources:
-      backupDbs:
-        type: OSS.Container
-        parameters:
-          # Bug in OSS.Container resource in 18.1.6 when used on IDCS-backed PaaS - use _account.soa.cloudstorageuri instead of creating storage API URL
-          # cloudStorageContainer: { "Fn::Join": ["", [ 'https://', { "Fn::GetParam": identityDomain }, '.storage.oraclecloud.com/v1/Storage-', { "Fn::GetParam": identityDomain }, /, { "Fn::GetParam": serviceName }, 'dbs' ] ] }
-          cloudStorageContainer: {"Fn::Join": ["", [{"Fn::GetParam": _account.soa.cloudstorageuri},{ "Fn::GetParam": serviceName }, dbs] ] }
-          cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
-          cloudStoragePassword: { "Fn::GetParam": cloudStoragePassword }
-      backupSob:
-        type: OSS.Container
-        parameters:
-          cloudStorageContainer: {"Fn::Join": ["", [{"Fn::GetParam": _account.soa.cloudstorageuri},{ "Fn::GetParam": serviceName }, sob] ] }
-          cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
-          cloudStoragePassword: { "Fn::GetParam": cloudStoragePassword }
-      dbcs:
-        type: dbaas
-        parameters:
-          serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, 'dbs' ] ] }
-          version: { "Fn::GetParam": dbVersion }
-          level: PAAS
-          edition: SE 
-          shape: { "Fn::GetParam": dbShape }
-          region: { "Fn::GetParam": cloudRegion }
-          ipNetwork: { "Fn::GetParam": ipNetwork }
-          vmPublicKeyText: { "Fn::GetParam": publicKeyText }
-          parameters:
-            - 
-              type: db
-              adminPassword: { "Fn::GetParam": commonPwd }
-              sid: { "Fn::GetParam": dbSid }
-              failoverDatabase: no
-              backupDestination: BOTH
-              timezone: UTC
-              charset: AL32UTF8
-              ncharset: AL16UTF16
-              cloudStorageContainer: {"Fn::Join": ["", [{"Fn::GetParam": _account.soa.cloudstorageuri},{ "Fn::GetParam": serviceName }, dbs] ] }
-              cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
-              cloudStoragePwd: { "Fn::GetParam": cloudStoragePassword }
-              usableStorage: 25
-        depends_on:
-          - backupDbs
-      soacs:
-        type: SOA
-        parameters:
-          serviceParameters:
-            purchasePack: soaosbb2b
-            edition: SUITE
-            vmUser: opc
-            serviceLevel: PAAS
-            enableAdminConsole: false
-            vmPublicKeyText: { "Fn::GetParam": publicKeyText }
-            serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, sob]] }
-            cloudStorageContainer: {"Fn::Join": ["", [{"Fn::GetParam": _account.soa.cloudstorageuri},{ "Fn::GetParam": serviceName }, sob] ] }
-            cloudStorageUser: { "Fn::GetParam": cloudStorageUsername }
-            cloudStoragePassword: { "Fn::GetParam": cloudStoragePassword }
-            serviceVersion: 12cRelease212
-            provisionOTD: {"Fn::GetParam": provisionOTD}
-            noRollback: true
-            meteringFrequency: MONTHLY
-            region: { "Fn::GetParam": cloudRegion }
-            ipNetwork: { "Fn::GetParam": ipNetwork }
-          componentParameters:
-             WLS:
-                managedServerCount: 1
-                domainPartitionCount: 1
-                adminUserName: { "Fn::GetParam": adminUserName }
-                adminPassword: { "Fn::GetParam": commonPwd }
-                dbServiceName: { "Fn::GetAtt": [dbcs, serviceName] }
-                dbaName: sys
-                dbaPassword: { "Fn::GetParam": commonPwd }
-                shape: oc1m
-             OTD:
-                adminUserName: { "Fn::GetParam": adminUserName }
-                adminPassword: { "Fn::GetParam": commonPwd }
-                shape: oc3
-                adminPort: 8001
-                keepAlive: true
-                listenerPortsEnabled: true
-                listenerType: http
-                loadBalancingPolicy: ROUND_ROBIN
-        depends_on:
-          - backupSob
+template:
+  templateName: oracloudprov-SOACS-IPNet
+  templateVersion: 1.0.13
+  templateDescription: >-
+    SOA CS (SOA/OSB) with Repo DB. Tested with CSM 18.2.2. **WARNING** You will
+    be billed for the Cloud resources created if you create a Cloud Stack from
+    this template. Derived from Oracle-SOACS-DBCS-Template 1.1.11
+  parameters:
+    publicKeyText:
+      label: SSH Public Key
+      description: >-
+        Click Edit to generate a new key pair, enter an existing public keys
+        value or upload a new public key.
+      type: ssh
+      mandatory: true
+      sensitive: true
+    adminUserName:
+      label: Administrator Username
+      description: >-
+        Your choice of name for the SOACS administration user. Must be between 8
+        and 128 ASCII characters and cannot contain a tab, brackets, parentheses
+        or the characters , < > & # | ?
+      type: String
+      minLength: 8
+      maxLength: 128
+      default: weblogic
+      allowedPattern: "[\\p{Print}&&[^',<>#&|\\?\\(\\)\\{\\}\t ]]++"
+      constraintDescription: >-
+        SOACS administration username must be between 8 and 128 ASCII characters
+        and cannot contain a tab, brackets, parentheses or the characters , < >
+        & # | ?
+    provisionOTD:
+      label: Provision OTD
+      description: Would you like to Provision OTD?
+      type: boolean
+      mandatory: false
+      default: true
+    identityDomain:
+      label: Identity Domain
+      description: 'Identity Domain, e.g. a123456 or idcs-0123456789abcdef01234567890abcdef'
+      type: String
+      minLength: 3
+      maxLength: 37
+      mandatory: true
+    cloudStorageUsername:
+      label: Storage Username
+      description: Oracle Cloud username with Storage read/write permissions
+      type: String
+      minLength: 10
+      maxLength: 50
+      mandatory: true
+    cloudStoragePassword:
+      label: Storage Password
+      description: Password for Oracle Cloud storage user
+      type: String
+      minLength: 7
+      maxLength: 20
+      mandatory: true
+      sensitive: true
+    cloudRegion:
+      label: Region / Site
+      description: >-
+        Name of the availability domain where the compute resources/IP network
+        is located
+      type: Region
+      mandatory: true
+      default: gbcom-south-1
+    ipNetwork:
+      label: IP Network
+      description: >-
+        Name of the existing IP Network to be used (NB this template cannot be
+        used on the Shared Network). For now use the full reference, e.g.
+        /Compute-a511724/simon/gbs1-dev-1
+      type: String
+      minLength: 3
+      maxLength: 100
+      mandatory: true
+    dbSid:
+      label: DB Name (SID)
+      description: >-
+        Database name of your choice, up to 8 characters; must begin with a
+        letter and can contain only letters and numbers.
+      type: String
+      minLength: 1
+      maxLength: 8
+      default: ORCL
+      allowedPattern: '^[a-zA-Z][a-zA-Z0-9]*$'
+      constraintDescription: >-
+        Database name can contain up to 8 characters; must begin with a letter
+        and can contain only letters and numbers. 
+    dbVersion:
+      label: DBaaS Version
+      description: Select a DBaaS Version
+      type: String
+      default: 12.2.0.1
+      allowedValues:
+        11.2.0.4: Oracle Database 11g Release 2
+        12.1.0.2: Oracle Database 12c Release 1
+        12.2.0.1: Oracle Database 12c Release 2
+    dbShape:
+      label: DBaaS VM shape
+      description: Select a shape (CPU/memory) for the single DBaaS VM
+      type: String
+      default: oc3
+      allowedValues:
+        oc3: '1 OCPU, General Purpose'
+        oc1m: '1 OCPU, High Memory'
+    commonPwd:
+      label: Password (to access SOACS and DBaaS)
+      description: >-
+        Password to access SOACS and DBaaS. Password must be between 8 and 30
+        characters with at least one lower case letter, one upper case letter,
+        one number and one special character (_,#). For example, Ach1z0#d
+      type: Password
+      minLength: 8
+      maxLength: 30
+      allowedPattern: '^(?=.*?[A-Z])(?=.*?[a-z])(?=.*[0-9])[a-zA-Z]([a-zA-Z0-9_#])+$'
+      mandatory: true
+      sensitive: true
+      constraintDescription: >-
+        Password must be between 8 and 30 characters with at least one lower
+        case letter, one upper case letter, one number and one special character
+        (_,#). For example, Ach1z0#d
+  parameterGroups:
+    - label: Database Cloud
+      parameters:
+        - dbSid
+        - dbVersion
+        - dbShape
+    - label: Access
+      parameters:
+        - identityDomain
+        - adminUserName
+        - commonPwd
+        - publicKeyText
+    - label: Storage Cloud (for Backup)
+      parameters:
+        - cloudStorageUsername
+        - cloudStoragePassword
+    - label: Data Center
+      parameters:
+        - cloudRegion
+        - ipNetwork
+  attributes:
+    OraConnectString:
+      value:
+        'Fn::GetAtt':
           - dbcs
-    attributes:
-        OraConnectString:
-            value: { "Fn::GetAtt": [dbcs, components.DB_1.attributes.CONNECT_DESCRIPTOR] }
-            description: DBCS connect descriptor
+          - components.DB_1.attributes.CONNECT_DESCRIPTOR
+      description: DBCS connect descriptor
+  conditions: {}
+  resources:
+    backupDbs:
+      type: OSS.Container
+      parameters:
+        cloudStorageContainer:
+          'Fn::Join':
+            - ''
+            - - 'Fn::GetParam': _account.soa.cloudstorageuri
+              - 'Fn::GetParam': serviceName
+              - dbs
+        cloudStorageUser:
+          'Fn::GetParam': cloudStorageUsername
+        cloudStoragePassword:
+          'Fn::GetParam': cloudStoragePassword
+    backupSob:
+      type: OSS.Container
+      parameters:
+        cloudStorageContainer:
+          'Fn::Join':
+            - ''
+            - - 'Fn::GetParam': _account.soa.cloudstorageuri
+              - 'Fn::GetParam': serviceName
+              - sob
+        cloudStorageUser:
+          'Fn::GetParam': cloudStorageUsername
+        cloudStoragePassword:
+          'Fn::GetParam': cloudStoragePassword
+    dbcs:
+      type: dbaas
+      parameters:
+        serviceName:
+          'Fn::Join':
+            - ''
+            - - 'Fn::GetParam': serviceName
+              - dbs
+        version:
+          'Fn::GetParam': dbVersion
+        level: PAAS
+        edition: SE
+        shape:
+          'Fn::GetParam': dbShape
+        region:
+          'Fn::GetParam': cloudRegion
+        ipNetwork:
+          'Fn::GetParam': ipNetwork
+        vmPublicKeyText:
+          'Fn::GetParam': publicKeyText
+        parameters:
+          - type: db
+            adminPassword:
+              'Fn::GetParam': commonPwd
+            sid:
+              'Fn::GetParam': dbSid
+            failoverDatabase: no
+            backupDestination: BOTH
+            timezone: UTC
+            charset: AL32UTF8
+            ncharset: AL16UTF16
+            cloudStorageContainer:
+              'Fn::Join':
+                - ''
+                - - 'Fn::GetParam': _account.soa.cloudstorageuri
+                  - 'Fn::GetParam': serviceName
+                  - dbs
+            cloudStorageUser:
+              'Fn::GetParam': cloudStorageUsername
+            cloudStoragePwd:
+              'Fn::GetParam': cloudStoragePassword
+            usableStorage: 25
+      depends_on:
+        - backupDbs
+    soacs:
+      type: SOA
+      parameters:
+        serviceParameters:
+          purchasePack: soaosbb2b
+          edition: SUITE
+          vmUser: opc
+          serviceLevel: PAAS
+          enableAdminConsole: true
+          vmPublicKeyText:
+            'Fn::GetParam': publicKeyText
+          serviceName:
+            'Fn::Join':
+              - ''
+              - - 'Fn::GetParam': serviceName
+                - sob
+          cloudStorageContainer:
+            'Fn::Join':
+              - ''
+              - - 'Fn::GetParam': _account.soa.cloudstorageuri
+                - 'Fn::GetParam': serviceName
+                - sob
+          cloudStorageUser:
+            'Fn::GetParam': cloudStorageUsername
+          cloudStoragePassword:
+            'Fn::GetParam': cloudStoragePassword
+          serviceVersion: 12cRelease212
+          provisionOTD:
+            'Fn::GetParam': provisionOTD
+          noRollback: true
+          meteringFrequency: HOURLY
+          region:
+            'Fn::GetParam': cloudRegion
+          ipNetwork:
+            'Fn::GetParam': ipNetwork
+        componentParameters:
+          WLS:
+            managedServerCount: 1
+            domainPartitionCount: 1
+            adminUserName:
+              'Fn::GetParam': adminUserName
+            adminPassword:
+              'Fn::GetParam': commonPwd
+            dbServiceName:
+              'Fn::GetAtt':
+                - dbcs
+                - serviceName
+            dbaName: sys
+            dbaPassword:
+              'Fn::GetParam': commonPwd
+            shape: oc1m
+          OTD:
+            adminUserName:
+              'Fn::GetParam': adminUserName
+            adminPassword:
+              'Fn::GetParam': commonPwd
+            shape: oc3
+            adminPort: 8001
+            keepAlive: true
+            listenerPortsEnabled: true
+            listenerType: http
+            loadBalancingPolicy: ROUND_ROBIN
+      depends_on:
+        - backupSob
+        - dbcs
