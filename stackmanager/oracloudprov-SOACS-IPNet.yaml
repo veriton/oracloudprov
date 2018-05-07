@@ -1,6 +1,6 @@
 template:
   templateName: oracloudprov-SOACS-IPNet
-  templateVersion: 1.1.3
+  templateVersion: 1.1.4
   templateDescription: >-
     SOA CS (SOA/OSB) with Repo DB. Tested with CSM 18.2.2. **WARNING** You will
     be billed for the Cloud resources created if you create a Cloud Stack from
@@ -14,6 +14,18 @@ template:
       type: ssh
       mandatory: true
       sensitive: true
+    meteringFrequency:
+      label: Metering Frequency
+      description: >-
+        Choose metering frequency, which is applied to both SOA and DB instances.
+        SOA HOURLY is only allowed on UC; metered/non-metered accounts must be MONTHLY.
+      type: String
+      # set to hourly as this has least cost if set wrongly (and will fail on non-metered and metered)
+      default: HOURLY
+      allowedValues:
+        MONTHLY: MONTHLY (any cloud account type)
+        HOURLY: HOURLY (Universal Credits only)
+      mandatory: true
     adminUserName:
       label: Administrator Username
       description: >-
@@ -89,6 +101,16 @@ template:
       constraintDescription: >-
         Database name can contain up to 8 characters; must begin with a letter
         and can contain only letters and numbers. 
+    dbEdition:
+      label: DBaaS Edition
+      description: Select a DBaaS Edition (Extreme Performance is not offered as it needs specialised configuration)
+      type: String
+      default: SE
+      allowedValues:
+        SE: 'SE: Standard Edition'
+        EE: 'EE: Enterprise Edition'
+        EE_HP: 'EE_HP: Enterprise Edition - High Performance'
+      mandatory: true
     dbVersion:
       label: DBaaS Version
       description: Select a DBaaS Version
@@ -104,8 +126,9 @@ template:
       type: String
       default: oc3
       allowedValues:
-        oc3: '1 OCPU, General Purpose'
-        oc1m: '1 OCPU, High Memory'
+        oc3:  'oc3:  1 OCPU, General Purpose'
+        oc1m: 'oc1m: 1 OCPU, High Memory'
+      mandatory: true
     dbStorage: 
         label: Usable Database Storage (GB)
         description: >-
@@ -132,11 +155,11 @@ template:
         case letter, one upper case letter, one number and one special character
         (_,#). For example, Ach1z0#d
   parameterGroups:
-    - label: Access
+    - label: Common
       parameters:
-        - adminUserName
         - commonPwd
         - publicKeyText
+        - meteringFrequency
     - label: Storage Cloud (for Backup)
       parameters:
         - cloudStorageUsername
@@ -149,10 +172,12 @@ template:
       parameters:
         - dbSid
         - dbVersion
+        - dbEdition
         - dbShape
         - dbStorage
     - label: SOA Cloud
       parameters:
+        - adminUserName
         - provisionOTD
         - soaClusterSize
   attributes:
@@ -201,9 +226,12 @@ template:
         version:
           'Fn::GetParam': dbVersion
         level: PAAS
-        edition: SE
+        edition:
+          'Fn::GetParam': dbEdition
         shape:
           'Fn::GetParam': dbShape
+        subscriptionType:
+          'Fn::GetParam': meteringFrequency
         region:
           'Fn::GetParam': cloudRegion
         ipNetwork:
@@ -262,9 +290,12 @@ template:
           cloudStoragePassword:
             'Fn::GetParam': cloudStoragePassword
           serviceVersion: 12cRelease212
+          # note there is no rollback option for DBaaS, only SOACS
+          noRollback: false
           provisionOTD:
             'Fn::GetParam': provisionOTD
-          meteringFrequency: HOURLY
+          meteringFrequency:
+            'Fn::GetParam': meteringFrequency
           region:
             'Fn::GetParam': cloudRegion
           ipNetwork:
