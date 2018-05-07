@@ -1,6 +1,6 @@
 template:
   templateName: oracloudprov-SOACS-IPNet
-  templateVersion: 1.1.2
+  templateVersion: 1.1.3
   templateDescription: >-
     SOA CS (SOA/OSB) with Repo DB. Tested with CSM 18.2.2. **WARNING** You will
     be billed for the Cloud resources created if you create a Cloud Stack from
@@ -264,7 +264,6 @@ template:
           serviceVersion: 12cRelease212
           provisionOTD:
             'Fn::GetParam': provisionOTD
-          noRollback: true
           meteringFrequency: HOURLY
           region:
             'Fn::GetParam': cloudRegion
