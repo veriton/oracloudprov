@@ -1,6 +1,6 @@
 template:
   templateName: oracloudprov-SOACS-IPNet
-  templateVersion: 1.1.1
+  templateVersion: 1.1.2
   templateDescription: >-
     SOA CS (SOA/OSB) with Repo DB. Tested with CSM 18.2.2. **WARNING** You will
     be billed for the Cloud resources created if you create a Cloud Stack from
@@ -106,6 +106,15 @@ template:
       allowedValues:
         oc3: '1 OCPU, General Purpose'
         oc1m: '1 OCPU, High Memory'
+    dbStorage: 
+        label: Usable Database Storage (GB)
+        description: >-
+          Enter the value for usable Database Storage in GB. This affects block storage consumption; 15-200 is recommended (default 25)
+        type: Number
+        minValue: 15
+        maxValue: 200
+        default: 25
+        mandatory: false
     commonPwd:
       label: Password (to access SOACS and DBaaS)
       description: >-
@@ -141,6 +150,7 @@ template:
         - dbSid
         - dbVersion
         - dbShape
+        - dbStorage
     - label: SOA Cloud
       parameters:
         - provisionOTD
@@ -162,7 +172,7 @@ template:
             - ''
             - - 'Fn::GetParam': _account.soa.cloudstorageuri
               - 'Fn::GetParam': serviceName
-              - dbscont
+              - dbsbkp
         cloudStorageUser:
           'Fn::GetParam': cloudStorageUsername
         cloudStoragePassword:
@@ -175,7 +185,7 @@ template:
             - ''
             - - 'Fn::GetParam': _account.soa.cloudstorageuri
               - 'Fn::GetParam': serviceName
-              - soacont
+              - soabkp
         cloudStorageUser:
           'Fn::GetParam': cloudStorageUsername
         cloudStoragePassword:
@@ -216,12 +226,13 @@ template:
                 - ''
                 - - 'Fn::GetParam': _account.soa.cloudstorageuri
                   - 'Fn::GetParam': serviceName
-                  - dbscont
+                  - dbsbkp
             cloudStorageUser:
               'Fn::GetParam': cloudStorageUsername
             cloudStoragePwd:
               'Fn::GetParam': cloudStoragePassword
-            usableStorage: 25
+            usableStorage:
+              'Fn::GetParam': dbStorage
       depends_on:
         - backupDbs
     soacs:
@@ -245,7 +256,7 @@ template:
               - ''
               - - 'Fn::GetParam': _account.soa.cloudstorageuri
                 - 'Fn::GetParam': serviceName
-                - soacont
+                - soabkp
           cloudStorageUser:
             'Fn::GetParam': cloudStorageUsername
           cloudStoragePassword:
