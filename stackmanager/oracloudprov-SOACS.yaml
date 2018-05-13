@@ -1,333 +1,274 @@
-template:
-  templateName: oracloudprov-SOACS-IPNet
-  templateVersion: 1.1.4
-  templateDescription: >-
-    SOA CS (SOA/OSB) with Repo DB. Tested with CSM 18.2.2. **WARNING** You will
-    be billed for the Cloud resources created if you create a Cloud Stack from
-    this template. Derived from Oracle-SOACS-DBCS-Template 1.1.11
-  parameters:
-    publicKeyText:
-      label: SSH Public Key
-      description: >-
-        Click Edit to generate a new key pair, enter an existing public keys
-        value or upload a new public key.
-      type: ssh
-      mandatory: true
-      sensitive: true
-    meteringFrequency:
-      label: Metering Frequency
-      description: >-
-        Choose metering frequency, which is applied to both SOA and DB instances.
-        SOA HOURLY is only allowed on UC; metered/non-metered accounts must be MONTHLY.
-      type: String
-      # set to hourly as this has least cost if set wrongly (and will fail on non-metered and metered)
-      default: HOURLY
-      allowedValues:
-        MONTHLY: MONTHLY (any cloud account type)
-        HOURLY: HOURLY (Universal Credits only)
-      mandatory: true
-    adminUserName:
-      label: Administrator Username
-      description: >-
-        Your choice of name for the SOACS administration user. Must be between 8
-        and 128 ASCII characters and cannot contain a tab, brackets, parentheses
-        or the characters , < > & # | ?
-      type: String
-      minLength: 8
-      maxLength: 128
-      default: weblogic
-      allowedPattern: "[\\p{Print}&&[^',<>#&|\\?\\(\\)\\{\\}\t ]]++"
-      constraintDescription: >-
-        SOACS administration username must be between 8 and 128 ASCII characters
-        and cannot contain a tab, brackets, parentheses or the characters , < >
-        & # | ?
-    provisionOTD:
-      label: Provision OTD
-      description: Would you like to Provision OTD?
-      type: boolean
-      mandatory: false
-      default: true
-    soaClusterSize:
-      label: SOA Cluster Size
-      description: Number of nodes you would like in SOA cluster
-      type: number
-      minValue: 1
-      maxValue: 8
-      mandatory: false
-      default: 1
-    cloudStorageUsername:
-      label: Storage Username
-      description: Oracle Cloud username with Storage read/write permissions
-      type: String
-      minLength: 10
-      maxLength: 50
-      mandatory: true
-    cloudStoragePassword:
-      label: Storage Password
-      description: Password for Oracle Cloud storage user
-      type: String
-      minLength: 7
-      maxLength: 20
-      mandatory: true
-      sensitive: true
-    cloudRegion:
-      label: Region / Site
-      description: >-
-        Name of the availability domain where the compute resources/IP network
-        is located
-      type: Region
-      mandatory: true
-      default: gbcom-south-1
-    ipNetwork:
-      label: IP Network
-      description: >-
-        Name of the existing IP Network to be used (NB this template cannot be
-        used on the Shared Network). For now use the full reference, e.g.
-        /Compute-a511724/simon/gbs1-dev-1
-      type: String
-      minLength: 3
-      maxLength: 100
-      mandatory: true
-    dbSid:
-      label: DB Name (SID)
-      description: >-
-        Database name of your choice, up to 8 characters; must begin with a
-        letter and can contain only letters and numbers.
-      type: String
-      minLength: 1
-      maxLength: 8
-      default: ORCL
-      allowedPattern: '^[a-zA-Z][a-zA-Z0-9]*$'
-      constraintDescription: >-
-        Database name can contain up to 8 characters; must begin with a letter
-        and can contain only letters and numbers. 
-    dbEdition:
-      label: DBaaS Edition
-      description: Select a DBaaS Edition (Extreme Performance is not offered as it needs specialised configuration)
-      type: String
-      default: SE
-      allowedValues:
-        SE: 'SE: Standard Edition'
-        EE: 'EE: Enterprise Edition'
-        EE_HP: 'EE_HP: Enterprise Edition - High Performance'
-      mandatory: true
-    dbVersion:
-      label: DBaaS Version
-      description: Select a DBaaS Version
-      type: String
-      default: 12.2.0.1
-      allowedValues:
-        11.2.0.4: Oracle Database 11g Release 2
-        12.1.0.2: Oracle Database 12c Release 1
-        12.2.0.1: Oracle Database 12c Release 2
-    dbShape:
-      label: DBaaS VM shape
-      description: Select a shape (CPU/memory) for the single DBaaS VM
-      type: String
-      default: oc3
-      allowedValues:
-        oc3:  'oc3:  1 OCPU, General Purpose'
-        oc1m: 'oc1m: 1 OCPU, High Memory'
-      mandatory: true
-    dbStorage: 
+---
+  template:
+    templateName: oracloudprov-SOACS
+    templateVersion: 2.0.0
+    templateDescription: "SOA CS (SOA/OSB) cluster with non-RAC DB CS repository. Tested with CSM 18.2.2. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template! Derived from Oracle-SOACS-DBCS 18.2.3-1804130567"
+    
+    parameters: 
+      wlVersion: 
+        label: SOA Version
+        description: "Select a SOA Version"
+        type: String
+        default: 12cRelease212
+        allowedValues: {"12cR3": "Oracle WebLogic Server 12c, 12.1.3.0", "12cRelease212": "Oracle WebLogic Server 12c, 12.2.1.2"}
+      wlComputeShape: 
+        label: Compute Shape
+        description: Select a Compute Shape for this service.
+        type: ComputeShape
+        mandatory: true
+        default: {"Fn::If": [isOCI, VM.Standard1.1, oc1m]}
+        allowedValues: {
+          "oc1m": "1 OCPUs and 15 GB memory",
+          "oc2m": "2 OCPU and 30 GB memory",
+          "oc3m": "4 OCPUs and 60 GB memory",
+          "oc4m": "8 OCPUs and 120 GB memory"
+         }
+        customize:
+          regionType: {"Fn::If": [emptyRegion, OCICLASSIC, {"Fn::GetParam": stackRegion.regionType}]}
+      wlByol:
+        label: Bring Your Own License
+        description: "Check this field if you wish to use your own license. If you choose this please make sure that you have proper entitlements to use for new service instances you are creating."
+        type: Boolean
+        default: false
+        condition: jcsBYOL
+      wlEntitlement:
+        label: SOA Entitlement
+        description: "This is the entitlement id used to identify the service in the tenant account."
+        type: String
+        mandatory: true
+        condition: jcsMultEntitl
+        allowedValues: {"Fn::GetParam": _account.soa.entitlementids}
+      publicKeyText: 
+        label: SSH Public Key
+        description: Click Edit to generate a new key pair, enter an existing public keys value or upload a new public key.
+        type: ssh
+        mandatory: true
+        sensitive: true
+      wlAdminUser: 
+        label: Administrator Username
+        description: "Your choice of name for the SOA administration user. Must be between 8 and 128 ASCII characters and cannot contain a tab, brackets, parentheses or the characters , < > & # | ?"
+        type: String
+        minLength: 8
+        maxLength: 128
+        default: weblogic
+        allowedPattern: "[\\p{Print}&&[^',<>#&|\\?\\(\\)\\{\\}\t ]]++"
+        constraintDescription: "SOA administration username must be between 8 and 128 ASCII characters and cannot contain a tab, brackets, parentheses or the characters , < > & # | ?"
+      dbSid: 
+        label: DB Name (SID)
+        description: "Database name of your choice, up to 8 characters; must begin with a letter and can contain only letters and numbers."
+        type: String
+        minLength: 1
+        maxLength: 8
+        default: ORCL
+        allowedPattern: "^[a-zA-Z][a-zA-Z0-9]*$"
+        constraintDescription: "Database name can contain up to 8 characters; must begin with a letter and can contain only letters and numbers. "
+      dbVersion: 
+        label: DBCS Version
+        description: "Select a DBCS Version"
+        type: String
+        default: 12.1.0.2
+        allowedValues: {"11.2.0.4": "Oracle Database 11g Release 2", "12.1.0.2": "Oracle Database 12c Release 1", "12.2.0.1": "Oracle Database 12c Release 2" }
+      dbByol:
+        label: Bring Your Own License
+        description: "Check this field if you wish to use your own license. If you choose this please make sure that you have proper entitlements to use for new service instances you are creating."
+        type: Boolean
+        default: false
+        condition: dbcsBYOL
+      dbEntitlement:
+        label: DB Entitlement
+        description: "This is the entitlement id used to identify the service in the tenant account."
+        type: String
+        condition: dbcsMultEntitl
+        mandatory: true
+        allowedValues: {"Fn::GetParam": _account.dbaas.entitlementids}
+      dbSoftwareEdition:
+        label: Software Edition
+        description: "Select the database edition for this Oracle Database Cloud Service instance."
+        type: String
+        allowedValues: {"SE": "Standard Edition", "EE": "Enterprise Edition", "EE_HP": "Enterprise Edition - High Performance", "EE_EP": "Enterprise Edition - Extreme Performance" }
+        default: SE
+      commonPwd:
+        label: Password (to access SOA and DBCS)
+        description: "Password to access JCS and DBCS. Password must be between 8 and 30 characters with at least one lower case letter, one upper case letter, one number and one special character (_,#). For example, Ach1z0#d"
+        type: Password
+        minLength: 8
+        maxLength: 30
+        allowedPattern: "^(?=.*?[A-Z])(?=.*?[a-z])(?=.*[0-9])[a-zA-Z]([a-zA-Z0-9_#])+$"
+        mandatory: true
+        sensitive: true
+        constraintDescription: "Password must be between 8 and 30 characters with at least one lower case letter, one upper case letter, one number and one special character (_,#). For example, Ach1z0#d"
+      backupDestination:
+        label: Backup Destination
+        description: Backup Destination can be None, or Both Remote and Disk Storage
+        type: String
+        default: BOTH
+        mandatory: true
+        allowedValues: {"BOTH": "Both Remote and Disk Storage" }
+      backupStorageContainer:
+        label: SOA Backup Container
+        description: {"Fn::If": [isOCI, "URL of the Object Storage container for your service instance backups. Example: https://swiftobjectstorage.<region>.oraclecloud.com/v1/<namespace>/<container>. See here for <a href=\"http://www.oracle.com/pls/topic/lookup?ctx=cloud&id=oci_general_paasprereqs\"> details.</a>", "URL of the Oracle Storage Cloud Service container for your service instance backups. Example: https://foo.storage.oraclecloud.com/v1/MyService-bar/MyContainer. To identify the URL of your storage account, see the (<a href=\"https://www.oracle.com/pls/topic/lookup?ctx=cloud&id=storage-rest-endpoint\"> documentation</a>). If this container doesn't exist, use the provided checkbox to create it."]}
+        type: String
+        condition: backupRequired
+        default:
+          "Fn::If":
+            - isOCI        
+            - ""
+            - "Fn::If":
+              - jcsMultEntitl
+              - {"Fn::Join": ["", [{ "Fn::GetParam": {"Fn::Join": ["", [_account.jaas.,{"Fn::GetParam": wlEntitlement},.cloudstorageuri]]}}, "JaaS"]]}
+              - {"Fn::Join": ["", [{"Fn::GetParam": _account.jaas.cloudstorageuri}, "JaaS"]]}
+      dbBackupStorageContainer:
+        label: Database Backup Container
+        description: {"Fn::If": [isOCI,"URL of the Object Storage container for your service instance backups. Example: https://swiftobjectstorage.<region>.oraclecloud.com/v1/<namespace>/<container>. To identify the URL of your storage account, see here for <a href = \"http://www.oracle.com/pls/topic/lookup?ctx=cloud&id=oci_general_paasprereqs\"> details.</a>","URL of the Oracle Storage Cloud Service container for your service instance backups. Example: https://foo.storage.oraclecloud.com/MyService-bar/MyContainer. To identify the URL of your storage account, see the <a href = \"http://www.oracle.com/pls/topic/lookup?ctx=cloud&id=CSSTO-GUID-221133EF-F408-4DCF-9BF7-7A1F12C3E8A6\"> documentation.</a> If this container doesn't exist, use the provided checkbox to create it."]}
+        type: String
+        condition: backupRequired
+        default:
+          "Fn::If":
+            - isOCI
+            - ""
+            - "Fn::If":
+              - dbcsMultEntitl
+              - {"Fn::Join": ["", [{ "Fn::GetParam": {"Fn::Join": ["", [_account.dbaas.,{"Fn::GetParam": wlEntitlement},.cloudstorageuri]]}}, "DBaaS"]]}
+              - {"Fn::Join": ["", [{"Fn::GetParam": _account.dbaas.cloudstorageuri}, "DBaaS"]]}
+      backupStorageUser:
+        label: Username
+        description: Name of an Oracle Storage Cloud Service user that has write access to the specific container. If the container does not exist, then this user must have the Service Administrator role.
+        type: String
+        condition: backupRequired
+      backupStoragePassword:
+        label: Password
+        description: Password for the Oracle Storage Cloud Service user.
+        type: String
+        sensitive: true
+        condition: backupRequired
+      createBackupContainer:
+        label: Create Cloud Storage Container
+        description: "Check this option if you want to create a new container with the information specified above."
+        type: Boolean
+        default: false
+        condition: backupRequired
+      dbComputeShape:
+        label: Compute Shape
+        description: Select a Compute Shape for this service.
+        type: ComputeShape
+        mandatory: true
+        default: {"Fn::If": [isOCI, VM.Standard1.1, oc3]}
+        customize:
+          regionType: {"Fn::If": [emptyRegion, OCICLASSIC, {"Fn::GetParam": stackRegion.regionType}]}
+      dbStorage: 
         label: Usable Database Storage (GB)
-        description: >-
-          Enter the value for usable Database Storage in GB. This affects block storage consumption; 15-200 is recommended (default 25)
+        description: "Enter the value for usable Database Storage in GB. The number must be between 15 and 1200."
         type: Number
-        minValue: 15
-        maxValue: 200
-        default: 25
-        mandatory: false
-    commonPwd:
-      label: Password (to access SOACS and DBaaS)
-      description: >-
-        Password to access SOACS and DBaaS. Password must be between 8 and 30
-        characters with at least one lower case letter, one upper case letter,
-        one number and one special character (_,#). For example, Ach1z0#d
-      type: Password
-      minLength: 8
-      maxLength: 30
-      allowedPattern: '^(?=.*?[A-Z])(?=.*?[a-z])(?=.*[0-9])[a-zA-Z]([a-zA-Z0-9_#])+$'
-      mandatory: true
-      sensitive: true
-      constraintDescription: >-
-        Password must be between 8 and 30 characters with at least one lower
-        case letter, one upper case letter, one number and one special character
-        (_,#). For example, Ach1z0#d
-  parameterGroups:
-    - label: Common
-      parameters:
-        - commonPwd
-        - publicKeyText
-        - meteringFrequency
-    - label: Storage Cloud (for Backup)
-      parameters:
-        - cloudStorageUsername
-        - cloudStoragePassword
-    - label: Data Center
-      parameters:
-        - cloudRegion
-        - ipNetwork
-    - label: Database Cloud
-      parameters:
-        - dbSid
-        - dbVersion
-        - dbEdition
-        - dbShape
-        - dbStorage
-    - label: SOA Cloud
-      parameters:
-        - adminUserName
-        - provisionOTD
-        - soaClusterSize
-  attributes:
-    OraConnectString:
-      value:
-        'Fn::GetAtt':
-          - dbcs
-          - components.DB_1.attributes.CONNECT_DESCRIPTOR
-      description: DBCS connect descriptor
-  conditions: {}
-  resources:
-    backupDbs:
-      type: OSS.Container
-      parameters:
-        cloudStorageContainer:
-          'Fn::Join':
-            - ''
-            - - 'Fn::GetParam': _account.soa.cloudstorageuri
-              - 'Fn::GetParam': serviceName
-              - dbsbkp
-        cloudStorageUser:
-          'Fn::GetParam': cloudStorageUsername
-        cloudStoragePassword:
-          'Fn::GetParam': cloudStoragePassword
-    backupSoa:
-      type: OSS.Container
-      parameters:
-        cloudStorageContainer:
-          'Fn::Join':
-            - ''
-            - - 'Fn::GetParam': _account.soa.cloudstorageuri
-              - 'Fn::GetParam': serviceName
-              - soabkp
-        cloudStorageUser:
-          'Fn::GetParam': cloudStorageUsername
-        cloudStoragePassword:
-          'Fn::GetParam': cloudStoragePassword
-    dbcs:
-      type: dbaas
-      parameters:
-        serviceName:
-          'Fn::Join':
-            - ''
-            - - 'Fn::GetParam': serviceName
-              - dbs
-        version:
-          'Fn::GetParam': dbVersion
-        level: PAAS
-        edition:
-          'Fn::GetParam': dbEdition
-        shape:
-          'Fn::GetParam': dbShape
-        subscriptionType:
-          'Fn::GetParam': meteringFrequency
-        region:
-          'Fn::GetParam': cloudRegion
-        ipNetwork:
-          'Fn::GetParam': ipNetwork
-        vmPublicKeyText:
-          'Fn::GetParam': publicKeyText
-        parameters:
-          - type: db
-            adminPassword:
-              'Fn::GetParam': commonPwd
-            sid:
-              'Fn::GetParam': dbSid
-            failoverDatabase: no
-            backupDestination: BOTH
-            timezone: UTC
-            charset: AL32UTF8
-            ncharset: AL16UTF16
-            cloudStorageContainer:
-              'Fn::Join':
-                - ''
-                - - 'Fn::GetParam': _account.soa.cloudstorageuri
-                  - 'Fn::GetParam': serviceName
-                  - dbsbkp
-            cloudStorageUser:
-              'Fn::GetParam': cloudStorageUsername
-            cloudStoragePwd:
-              'Fn::GetParam': cloudStoragePassword
-            usableStorage:
-              'Fn::GetParam': dbStorage
-      depends_on:
-        - backupDbs
-    soacs:
-      type: SOA
-      parameters:
-        serviceParameters:
+        default: 50
+      stackRegion:
+        label: Region
+        type: RegionConfig
+        customize:
+          serviceType: SOA
+      provisionOTD: 
+        label: Provision OTD
+        description: Would you like to Provision OTD?
+        type: boolean
+        mandatory: false  
+        default: true
+    parameterGroups:
+      - label: Database Cloud
+        parameters: [ dbByol, dbEntitlement, dbSid, dbVersion, dbComputeShape, dbStorage, dbSoftwareEdition ]
+      - label: Access
+        parameters: [ commonPwd, publicKeyText, stackRegion ]
+      - label: Storage Cloud (for Backup)
+        parameters: [ backupDestination, backupStorageContainer, dbBackupStorageContainer, backupStorageUser, backupStoragePassword, createBackupContainer ]
+      - label: SOA Cloud
+        parameters: [ wlByol, wlEntitlement, wlVersion, wlComputeShape, wlAdminUser ]
+    conditions:
+       jcsMultEntitl: {"Fn::GreaterThan": [{"Fn::Size" : {"Fn::GetParam" : _account.soa.entitlementids}}, 1]}
+       dbcsMultEntitl: {"Fn::GreaterThan": [{"Fn::Size" : {"Fn::GetParam" : _account.dbaas.entitlementids}}, 1]}
+       jcsBYOL: {"Fn::Equals": [true, "Fn::GetParam": _account.soa.BYOL]}
+       dbcsBYOL: {"Fn::Equals": [true, "Fn::GetParam": _account.DBaaS.BYOL]}
+       backupRequired: {"Fn::Equals": ["BOTH", "Fn::GetParam": backupDestination]}
+       createContainer: {"Fn::If": [backupRequired, {"Fn::Equals": ["true", "Fn::GetParam": createBackupContainer]}, "false"]}
+       emptyRegion: {"Fn::Empty": {"Fn::GetParam": stackRegion.region}}
+       emptyAd: {"Fn::Empty": {"Fn::GetParam": stackRegion.availabilityDomain}}
+       emptySubnet: {"Fn::Empty": {"Fn::GetParam": stackRegion.subnet}}
+       emptyIpNetwork: {"Fn::Empty": {"Fn::GetParam": stackRegion.ipNetwork}}
+       isOCI: {"Fn::Equals": [OCI, "Fn::GetParam": stackRegion.regionType]}
+       isUCM: {"Fn::Equals": [true, "Fn::GetParam": _account.soa.commitmodelaccount]}
+    resources:
+      backupContainer: 
+        type: OSS.Container
+        condition: createContainer
+        parameters: 
+          cloudStorageContainer: { "Fn::GetParam": dbBackupStorageContainer }
+          cloudStorageUser: { "Fn::GetParam": backupStorageUser }
+          cloudStoragePassword: { "Fn::GetParam": backupStoragePassword }
+          refServiceType: SOA
+      dbcs:
+        type: dbaas
+        parameters: 
+          serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, DBCS]] }
+          version: { "Fn::GetParam": dbVersion }
+          level: PAAS
+          edition: { "Fn::GetParam": dbSoftwareEdition }
+          shape: { "Fn::GetParam": dbComputeShape }
+          vmPublicKeyText: { "Fn::GetParam": publicKeyText }
+          isBYOL: { "Fn::If": [dbcsBYOL, {"Fn::GetParam": dbByol}, "OPC::NoValue" ]}
+          serviceEntitlementId: { "Fn::If": [dbcsMultEntitl, {"Fn::GetParam": dbEntitlement}, "OPC::NoValue" ]}
+          subnet: { "Fn::If": [emptySubnet, "OPC::NoValue", { "Fn::GetParam": stackRegion.subnet } ]}
+          ipNetwork: { "Fn::If": [emptyIpNetwork, "OPC::NoValue", { "Fn::GetParam": stackRegion.ipNetwork } ]}
+          availabilityDomain: { "Fn::If": [emptyAd, "OPC::NoValue", { "Fn::GetParam": stackRegion.availabilityDomain } ]}
+          region: { "Fn::If": [emptyRegion, "OPC::NoValue", { "Fn::GetParam": stackRegion.region } ]}
+          parameters: 
+            - 
+              type: db
+              adminPassword: { "Fn::GetParam": commonPwd }
+              sid: { "Fn::GetParam": dbSid }
+              failoverDatabase: no
+              backupDestination: { "Fn::GetParam": backupDestination }
+              timezone: UTC
+              charset: AL32UTF8
+              ncharset: AL16UTF16
+              cloudStorageContainer: { "Fn::GetParam": dbBackupStorageContainer }
+              cloudStorageUser: { "Fn::GetParam": backupStorageUser }
+              cloudStoragePwd: { "Fn::GetParam": backupStoragePassword }
+              usableStorage: { "Fn::GetParam": dbStorage }
+        depends_on: [ { "Fn::If": [createContainer, backupContainer, "OPC::NoValue" ]} ]
+      soacs: 
+        type: SOA
+        parameters: 
           purchasePack: soaosbb2b
           edition: SUITE
-          vmUser: opc
           serviceLevel: PAAS
           enableAdminConsole: true
-          vmPublicKeyText:
-            'Fn::GetParam': publicKeyText
-          serviceName:
-            'Fn::Join':
-              - ''
-              - - 'Fn::GetParam': serviceName
-                - soa
-          cloudStorageContainer:
-            'Fn::Join':
-              - ''
-              - - 'Fn::GetParam': _account.soa.cloudstorageuri
-                - 'Fn::GetParam': serviceName
-                - soabkp
-          cloudStorageUser:
-            'Fn::GetParam': cloudStorageUsername
-          cloudStoragePassword:
-            'Fn::GetParam': cloudStoragePassword
-          serviceVersion: 12cRelease212
-          # note there is no rollback option for DBaaS, only SOACS
-          noRollback: false
-          provisionOTD:
-            'Fn::GetParam': provisionOTD
-          meteringFrequency:
-            'Fn::GetParam': meteringFrequency
-          region:
-            'Fn::GetParam': cloudRegion
-          ipNetwork:
-            'Fn::GetParam': ipNetwork
-        componentParameters:
-          WLS:
-            managedServerCount:
-              'Fn::GetParam': soaClusterSize
-            domainPartitionCount: 1
-            adminUserName:
-              'Fn::GetParam': adminUserName
-            adminPassword:
-              'Fn::GetParam': commonPwd
-            dbServiceName:
-              'Fn::GetAtt':
-                - dbcs
-                - serviceName
-            dbaName: sys
-            dbaPassword:
-              'Fn::GetParam': commonPwd
-            shape: oc1m
-          OTD:
-            adminUserName:
-              'Fn::GetParam': adminUserName
-            adminPassword:
-              'Fn::GetParam': commonPwd
-            shape: oc3
-            adminPort: 8001
-            keepAlive: true
-            listenerPortsEnabled: true
-            listenerType: http
-            loadBalancingPolicy: ROUND_ROBIN
-      depends_on:
-        - backupSoa
-        - dbcs
+          vmPublicKeyText: { "Fn::GetParam": publicKeyText }
+          serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, SOACS]] }
+          serviceVersion: { "Fn::GetParam": wlVersion }
+          cloudStorageContainer: { "Fn::GetParam": dbBackupStorageContainer }
+          cloudStorageUser: { "Fn::GetParam": backupStorageUser }
+          cloudStoragePassword:  { "Fn::GetParam": backupStoragePassword }
+          provisionOTD: {"Fn::GetParam": provisionOTD}
+          meteringFrequency: { "Fn::If": [isUCM,"HOURLY","MONTHLY"]}
+          subnet: { "Fn::If": [emptySubnet, "OPC::NoValue", { "Fn::GetParam": stackRegion.subnet } ]}
+          ipNetwork: { "Fn::If": [emptyIpNetwork, "OPC::NoValue", { "Fn::GetParam": stackRegion.ipNetwork } ]}
+          availabilityDomain: { "Fn::If": [emptyAd, "OPC::NoValue", { "Fn::GetParam": stackRegion.availabilityDomain } ]}
+          region: { "Fn::If": [emptyRegion, "OPC::NoValue", { "Fn::GetParam": stackRegion.region } ]}
+          isBYOL: { "Fn::If": [jcsBYOL, {"Fn::GetParam": wlByol}, "OPC::NoValue" ]}
+          components:  
+             WLS:
+                adminUserName: { "Fn::GetParam": wlAdminUser }
+                adminPassword: { "Fn::GetParam": commonPwd }
+                dbServiceName: { "Fn::GetAtt": [dbcs, serviceName] }
+                dbaName: sys
+                dbaPassword: { "Fn::GetParam": commonPwd }
+                managedServerCount: 1
+                shape: { "Fn::GetParam": wlComputeShape }
+             OTD:  
+                listenerPortsEnabled: true
+                loadBalancingPolicy: LEAST_CONNECTION_COUNT
+                haEnabled: false    
+                shape: oc3
+        depends_on: 
+          - dbcs   
+    attributes: 
+        OraConnectString: 
+            value: { "Fn::GetAtt": [dbcs, components.DB_1.attributes.CONNECT_DESCRIPTOR] }
+            description: DBCS connect descriptor
