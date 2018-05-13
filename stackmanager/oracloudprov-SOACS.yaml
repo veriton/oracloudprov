@@ -136,7 +136,7 @@
             - "Fn::If":
               - dbcsMultEntitl
               - {"Fn::Join": ["", [{ "Fn::GetParam": {"Fn::Join": ["", [_account.dbaas.,{"Fn::GetParam": wlEntitlement},.cloudstorageuri]]}}, "DBaaS"]]}
-              - {"Fn::Join": ["", [{"Fn::GetParam": _account.dbaas.cloudstorageuri}, "DBaaS"]]}
+              - {"Fn::Join": ["", [{"Fn::GetParam": _account.dbaas.cloudstorageuri}, [{"Fn::GetParam": serviceName}]]]}
       backupStorageUser:
         label: Username
         description: Name of an Oracle Storage Cloud Service user that has write access to the specific container. If the container does not exist, then this user must have the Service Administrator role.
