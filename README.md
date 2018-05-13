@@ -12,7 +12,7 @@ Oracle's cloud platform is developing very quickly indeed, especially in areas l
 This stack template was last derived from Oracle's supplied Oracle-SOACS-DBCS-Template (version 18.2.3-1804130567) in May 18.
 
 ### Summary of Changes
-- Removed trailing spaces on some lines (cosmetic)
+- Removed trailing spaces on some lines and made type capitalisation consistent (cosmetic)
 - Made DB 12.2 as default and removed 11g option
 - Backup storage container is created by default
 - Practical sizes on DB usable space with default as 25GB for dev/test
@@ -28,10 +28,11 @@ This stack template was last derived from Oracle's supplied Oracle-SOACS-DBCS-Te
 
 ### Known Issues
 1. A single backup container is shared between DBaaS and SOACS. This important for DB Backup Cloud consumption (which I think is charged at the container level)
+2. __Currently this works in Shared Network only__. I haven't worked out how to specify region/IP network in the stackRegion parameter without being able to use the RegionConfig type - leaving it empty will create stack in the Shared Network.
 
 ### Notes
 #### 1. RegionConfig
-A parameter type of `RegionConfig` is provided in the original Oracle template, but is not allowed in custom templates. In interactive operation it is quite nice as it gives a Region drop-down list and then optional drop-down list for IP networks - instead in a custom template you need to provide region as a JSON string.
+A parameter type of `RegionConfig` is provided in the original Oracle template, but is not allowed in custom templates. In interactive operation it is quite nice as it gives a Region drop-down list and then optional drop-down list for IP networks - instead in a custom template you need to provide region details as a JSON string I think.
 
 #### 2. Backup storage containers
 There's something funny about the backup storage containers in either the original script or how CSM currently handles them. Segregation of SOA from DBaaS backup worked on my v1 template but now there are some extra parameters. In the stock template its "JaaS" backup container is not used at all (soacs resource uses `dbBackupStorageContainer`) but also the dbcs resource depends on `backupContainer` which looks like the SOA one, even though the DBaaS one is created (possibly because it is the last?). Work in progress.
