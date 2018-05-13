@@ -4,8 +4,16 @@
     templateVersion: 2.0.0
     templateDescription: "SOA CS (SOA/OSB) cluster with non-RAC DB CS repository. Tested with CSM 18.2.2. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template! Derived from Oracle-SOACS-DBCS 18.2.3-1804130567"
     
-    parameters: 
-      wlVersion: 
+    parameters:
+      serviceName:
+        label: Name
+        description: "Enter a name of exactly 5 characters for the stack, e.g. dev01 or prd12. The name must start with a letter and can contain only lower case letters and numbers."
+        type: String
+        minLength: 5
+        maxLength: 5
+        default: dev01
+        allowedPattern: "^[a-z]+[a-z0-9]*"
+      wlVersion:
         label: SOA Version
         description: "Select a SOA Version"
         type: String
@@ -53,21 +61,20 @@
         default: weblogic
         allowedPattern: "[\\p{Print}&&[^',<>#&|\\?\\(\\)\\{\\}\t ]]++"
         constraintDescription: "SOA administration username must be between 8 and 128 ASCII characters and cannot contain a tab, brackets, parentheses or the characters , < > & # | ?"
-      dbSid: 
-        label: DB Name (SID)
-        description: "Database name of your choice, up to 8 characters; must begin with a letter and can contain only letters and numbers."
-        type: String
-        minLength: 1
-        maxLength: 8
-        default: ORCL
-        allowedPattern: "^[a-zA-Z][a-zA-Z0-9]*$"
-        constraintDescription: "Database name can contain up to 8 characters; must begin with a letter and can contain only letters and numbers. "
-      dbVersion: 
+      wlClusterSize:
+        label: SOA Cluster Size
+        description: "Number of nodes you would like in the SOA cluster"
+        type: Number
+        minValue: 1
+        maxValue: 8
+        mandatory: false
+        default: 1
+      dbVersion:
         label: DBCS Version
         description: "Select a DBCS Version"
         type: String
-        default: 12.1.0.2
-        allowedValues: {"11.2.0.4": "Oracle Database 11g Release 2", "12.1.0.2": "Oracle Database 12c Release 1", "12.2.0.1": "Oracle Database 12c Release 2" }
+        default: 12.2.0.1
+        allowedValues: {"12.1.0.2": "Oracle Database 12c Release 1", "12.2.0.1": "Oracle Database 12c Release 2" }
       dbByol:
         label: Bring Your Own License
         description: "Check this field if you wish to use your own license. If you choose this please make sure that you have proper entitlements to use for new service instances you are creating."
@@ -145,7 +152,7 @@
         label: Create Cloud Storage Container
         description: "Check this option if you want to create a new container with the information specified above."
         type: Boolean
-        default: false
+        default: true
         condition: backupRequired
       dbComputeShape:
         label: Compute Shape
@@ -159,10 +166,15 @@
         label: Usable Database Storage (GB)
         description: "Enter the value for usable Database Storage in GB. The number must be between 15 and 1200."
         type: Number
-        default: 50
+        default: 25
+        minValue: 15
+        maxValue: 200
       stackRegion:
         label: Region
-        type: RegionConfig
+        description: Enter region configuration in JSON format (see RegionConfig note at https://github.com/veriton/oracloudprov/blob/master/README.md)
+        # REGIONCONFIG parameter type seems to be reserved only for Oracle templates
+        # type: RegionConfig
+        type: String
         customize:
           serviceType: SOA
       provisionOTD:
@@ -173,13 +185,13 @@
         default: true
     parameterGroups:
       - label: Database Cloud
-        parameters: [ dbByol, dbEntitlement, dbSid, dbVersion, dbComputeShape, dbStorage, dbSoftwareEdition ]
+        parameters: [ dbByol, dbEntitlement, dbVersion, dbComputeShape, dbStorage, dbSoftwareEdition ]
       - label: Access
         parameters: [ commonPwd, publicKeyText, stackRegion ]
       - label: Storage Cloud (for Backup)
         parameters: [ backupDestination, backupStorageContainer, dbBackupStorageContainer, backupStorageUser, backupStoragePassword, createBackupContainer ]
       - label: SOA Cloud
-        parameters: [ wlByol, wlEntitlement, wlVersion, wlComputeShape, wlAdminUser ]
+        parameters: [ wlByol, wlEntitlement, wlVersion, provisionOTD, wlClusterSize, wlComputeShape, wlAdminUser ]
     conditions:
        jcsMultEntitl: {"Fn::GreaterThan": [{"Fn::Size" : {"Fn::GetParam" : _account.soa.entitlementids}}, 1]}
        dbcsMultEntitl: {"Fn::GreaterThan": [{"Fn::Size" : {"Fn::GetParam" : _account.dbaas.entitlementids}}, 1]}
@@ -194,7 +206,7 @@
        isOCI: {"Fn::Equals": [OCI, "Fn::GetParam": stackRegion.regionType]}
        isUCM: {"Fn::Equals": [true, "Fn::GetParam": _account.soa.commitmodelaccount]}
     resources:
-      dbBackupContainer:
+      backupContainer:
         type: OSS.Container
         condition: createContainer
         parameters:
@@ -204,8 +216,8 @@
           refServiceType: SOA
       dbcs:
         type: dbaas
-        parameters: 
-          serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, DBCS]] }
+        parameters:
+          serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, dbs]] }
           version: { "Fn::GetParam": dbVersion }
           level: PAAS
           edition: { "Fn::GetParam": dbSoftwareEdition }
@@ -221,7 +233,8 @@
             - 
               type: db
               adminPassword: { "Fn::GetParam": commonPwd }
-              sid: { "Fn::GetParam": dbSid }
+              pdbName: { "Fn::GetParam": serviceName }
+              sid: { "Fn::Join": ["", ["Fn::GetParam": serviceName, dbs]] }
               failoverDatabase: no
               backupDestination: { "Fn::GetParam": backupDestination }
               timezone: UTC
@@ -240,7 +253,7 @@
           serviceLevel: PAAS
           enableAdminConsole: true
           vmPublicKeyText: { "Fn::GetParam": publicKeyText }
-          serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, SOACS]] }
+          serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, soa]] }
           serviceVersion: { "Fn::GetParam": wlVersion }
           cloudStorageContainer: { "Fn::GetParam": dbBackupStorageContainer }
           cloudStorageUser: { "Fn::GetParam": backupStorageUser }
@@ -259,7 +272,7 @@
                 dbServiceName: { "Fn::GetAtt": [dbcs, serviceName] }
                 dbaName: sys
                 dbaPassword: { "Fn::GetParam": commonPwd }
-                managedServerCount: 1
+                managedServerCount: { "Fn::GetParam": wlClusterSize }
                 shape: { "Fn::GetParam": wlComputeShape }
              OTD:  
                 listenerPortsEnabled: true
@@ -267,7 +280,6 @@
                 haEnabled: false    
                 shape: oc3
         depends_on:
-          - "Fn::If": [createContainer, soaBackupContainer, "OPC::NoValue" ]
           - dbcs   
     attributes:
         OraConnectString:
