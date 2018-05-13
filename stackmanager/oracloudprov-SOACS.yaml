@@ -1,7 +1,7 @@
 ---
   template:
     templateName: oracloudprov-SOACS
-    templateVersion: 2.0.0
+    templateVersion: 2.1.0
     templateDescription: "SOA CS (SOA/OSB) cluster with non-RAC DB CS repository. Tested with CSM 18.2.2. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template! Derived from Oracle-SOACS-DBCS 18.2.3-1804130567"
     
     parameters:
@@ -52,6 +52,13 @@
         type: ssh
         mandatory: true
         sensitive: true
+      allowPublicAdmin:
+        label: Allow public admin
+        # this may be used for other admin services later, hence a more generic name than WLS enableAdminConsole
+        description: "Check this to allow the WebLogic console & EM FMW console to be available over the internet - for security reasons this is not recommended for anything other than initial testing."
+        type: Boolean
+        default: false
+        mandatory: false
       wlAdminUser:
         label: Administrator Username
         description: "Your choice of name for the SOA administration user. Must be between 8 and 128 ASCII characters and cannot contain a tab, brackets, parentheses or the characters , < > & # | ?"
@@ -135,8 +142,8 @@
             - ""
             - "Fn::If":
               - dbcsMultEntitl
-              - {"Fn::Join": ["", [{ "Fn::GetParam": {"Fn::Join": ["", [_account.dbaas.,{"Fn::GetParam": wlEntitlement},.cloudstorageuri]]}}, "DBaaS"]]}
-              - {"Fn::Join": ["", [{"Fn::GetParam": _account.dbaas.cloudstorageuri}, [{"Fn::GetParam": serviceName}]]]}
+              - {"Fn::Join": ["", [{ "Fn::GetParam": {"Fn::Join": ["", [_account.dbaas.,{"Fn::GetParam": wlEntitlement},.cloudstorageuri]]}}, {"Fn::GetParam": serviceName}]]}
+              - {"Fn::Join": ["", [{"Fn::GetParam": _account.dbaas.cloudstorageuri}, {"Fn::GetParam": serviceName}]]}
       backupStorageUser:
         label: Username
         description: Name of an Oracle Storage Cloud Service user that has write access to the specific container. If the container does not exist, then this user must have the Service Administrator role.
@@ -251,7 +258,7 @@
           purchasePack: soaosbb2b
           edition: SUITE
           serviceLevel: PAAS
-          enableAdminConsole: true
+          enableAdminConsole: { "Fn::GetParam": allowPublicAdmin }
           vmPublicKeyText: { "Fn::GetParam": publicKeyText }
           serviceName: { "Fn::Join": ["", ["Fn::GetParam": serviceName, soa]] }
           serviceVersion: { "Fn::GetParam": wlVersion }

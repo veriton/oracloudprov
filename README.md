@@ -24,6 +24,7 @@ This stack template was last derived from Oracle's supplied Oracle-SOACS-DBCS-Te
 - SOA instance suffix is now 3-letter acronym of soa (not SOACS) and DB is dbs (not DBCS)
 - Added SOA cluster size parameter
 - Changed the backup storage container from DBaaS to the stack name (to make easier segregation of backup between stacks) - see note 2
+- Added `allowPublicAdmin` for initial testing, defaulted to false
 
 ### Known Issues
 1. A single backup container is shared between DBaaS and SOACS. This important for DB Backup Cloud consumption (which I think is charged at the container level)
@@ -35,13 +36,15 @@ A parameter type of `RegionConfig` is provided in the original Oracle template, 
 #### 2. Backup storage containers
 There's something funny about the backup storage containers in either the original script or how CSM currently handles them. Segregation of SOA from DBaaS backup worked on my v1 template but now there are some extra parameters. In the stock template its "JaaS" backup container is not used at all (soacs resource uses `dbBackupStorageContainer`) but also the dbcs resource depends on `backupContainer` which looks like the SOA one, even though the DBaaS one is created (possibly because it is the last?). Work in progress.
 
-### Example Run-times
+### Approximate Run-times
 Step                        | Step Run-time | Overall
 --------------------------- | ------------- | -------
 Single node database        | 30 mins       | n/a
-Single node SOA without OTD | 71 mins       | 1h 41 mins
+Single node SOA without OTD | 70 mins       | 1h 40 mins
 Single node SOA with OTD    | ** mins       |
 Two node SOA with OTD       | ** mins       |
+
+These run-times will vary slightly depending on congestion in the data centre or your cloud account. However, if a stack is taking an unusually long time (e.g. +50%) at one stage it is likely to be in the process of failing.
 
 Note the `postCreateService_2` custom action at the end of SOA instance creation, introduced in May 18, typically takes 45-50 mins.
 
