@@ -10,7 +10,7 @@ Oracle's cloud platform is developing very quickly indeed, especially in areas l
 A stack template derived from Oracle's supplied Oracle-SOACS-DBCS-Template (version 1.1.11)
 
 ### High level summary of changes
-
+- Removed trailing spaces on some lines (cosmetic)
 
 *Improved documentation will follow (eventually ;) )*
 

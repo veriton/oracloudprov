@@ -11,7 +11,7 @@
         type: String
         default: 12cRelease212
         allowedValues: {"12cR3": "Oracle WebLogic Server 12c, 12.1.3.0", "12cRelease212": "Oracle WebLogic Server 12c, 12.2.1.2"}
-      wlComputeShape: 
+      wlComputeShape:
         label: Compute Shape
         description: Select a Compute Shape for this service.
         type: ComputeShape
@@ -38,13 +38,13 @@
         mandatory: true
         condition: jcsMultEntitl
         allowedValues: {"Fn::GetParam": _account.soa.entitlementids}
-      publicKeyText: 
+      publicKeyText:
         label: SSH Public Key
         description: Click Edit to generate a new key pair, enter an existing public keys value or upload a new public key.
         type: ssh
         mandatory: true
         sensitive: true
-      wlAdminUser: 
+      wlAdminUser:
         label: Administrator Username
         description: "Your choice of name for the SOA administration user. Must be between 8 and 128 ASCII characters and cannot contain a tab, brackets, parentheses or the characters , < > & # | ?"
         type: String
@@ -155,7 +155,7 @@
         default: {"Fn::If": [isOCI, VM.Standard1.1, oc3]}
         customize:
           regionType: {"Fn::If": [emptyRegion, OCICLASSIC, {"Fn::GetParam": stackRegion.regionType}]}
-      dbStorage: 
+      dbStorage:
         label: Usable Database Storage (GB)
         description: "Enter the value for usable Database Storage in GB. The number must be between 15 and 1200."
         type: Number
@@ -165,7 +165,7 @@
         type: RegionConfig
         customize:
           serviceType: SOA
-      provisionOTD: 
+      provisionOTD:
         label: Provision OTD
         description: Would you like to Provision OTD?
         type: boolean
@@ -194,10 +194,10 @@
        isOCI: {"Fn::Equals": [OCI, "Fn::GetParam": stackRegion.regionType]}
        isUCM: {"Fn::Equals": [true, "Fn::GetParam": _account.soa.commitmodelaccount]}
     resources:
-      backupContainer: 
+      dbBackupContainer:
         type: OSS.Container
         condition: createContainer
-        parameters: 
+        parameters:
           cloudStorageContainer: { "Fn::GetParam": dbBackupStorageContainer }
           cloudStorageUser: { "Fn::GetParam": backupStorageUser }
           cloudStoragePassword: { "Fn::GetParam": backupStoragePassword }
@@ -217,7 +217,7 @@
           ipNetwork: { "Fn::If": [emptyIpNetwork, "OPC::NoValue", { "Fn::GetParam": stackRegion.ipNetwork } ]}
           availabilityDomain: { "Fn::If": [emptyAd, "OPC::NoValue", { "Fn::GetParam": stackRegion.availabilityDomain } ]}
           region: { "Fn::If": [emptyRegion, "OPC::NoValue", { "Fn::GetParam": stackRegion.region } ]}
-          parameters: 
+          parameters:
             - 
               type: db
               adminPassword: { "Fn::GetParam": commonPwd }
@@ -232,9 +232,9 @@
               cloudStoragePwd: { "Fn::GetParam": backupStoragePassword }
               usableStorage: { "Fn::GetParam": dbStorage }
         depends_on: [ { "Fn::If": [createContainer, backupContainer, "OPC::NoValue" ]} ]
-      soacs: 
+      soacs:
         type: SOA
-        parameters: 
+        parameters:
           purchasePack: soaosbb2b
           edition: SUITE
           serviceLevel: PAAS
@@ -266,9 +266,10 @@
                 loadBalancingPolicy: LEAST_CONNECTION_COUNT
                 haEnabled: false    
                 shape: oc3
-        depends_on: 
+        depends_on:
+          - "Fn::If": [createContainer, soaBackupContainer, "OPC::NoValue" ]
           - dbcs   
-    attributes: 
-        OraConnectString: 
+    attributes:
+        OraConnectString:
             value: { "Fn::GetAtt": [dbcs, components.DB_1.attributes.CONNECT_DESCRIPTOR] }
             description: DBCS connect descriptor
