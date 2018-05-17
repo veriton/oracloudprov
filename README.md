@@ -19,7 +19,7 @@ This stack template was last derived from Oracle's supplied Oracle-SOACS-DBCS-Te
 - DB PDB name is service name (in case you want to move it later)
 - DB SID is service name with dbs suffix (can't be same as PDB) & removed redundant SID parameter
 - Cloud stack name has to be 5 chars, part of my naming standard
-- `stackRegion` changed from `RegionConfig` to `String` - see note 1
+- `stackRegion` has been split up into 4 separate `String` parameters - see note 1
 - Added `provisionOTD` to the SOA parameter group
 - SOA instance suffix is now 3-letter acronym of soa (not SOACS) and DB is dbs (not DBCS)
 - Added SOA cluster size parameter
@@ -32,7 +32,7 @@ This stack template was last derived from Oracle's supplied Oracle-SOACS-DBCS-Te
 
 ### Notes
 #### 1. RegionConfig
-A parameter type of `RegionConfig` is provided in the original Oracle template, but is not allowed in custom templates. In interactive operation it is quite nice as it gives a Region drop-down list and then optional drop-down list for IP networks - instead in a custom template you need to provide region details as a JSON string I think.
+A parameter type of `RegionConfig` is provided in the original Oracle template, but is not allowed in custom templates. In interactive operation it is quite nice as it gives a Region drop-down list and then optional drop-down list for IP networks - instead this custom template requests individual parameters (without drop-down lists) so you need to understand what you are providing.
 
 #### 2. Backup storage containers
 There's something funny about the backup storage containers in either the original script or how CSM currently handles them. Segregation of SOA from DBaaS backup worked on my v1 template but now there are some extra parameters. In the stock template its "JaaS" backup container is not used at all (soacs resource uses `dbBackupStorageContainer`) but also the dbcs resource depends on `backupContainer` which looks like the SOA one, even though the DBaaS one is created (possibly because it is the last?). Work in progress.

@@ -1,8 +1,8 @@
 ---
   template:
     templateName: oracloudprov-SOACS
-    templateVersion: 2.1.103
-    templateDescription: "OPC-1 branch: SOA CS (SOA/OSB) cluster with non-RAC DB CS repository. Tested with CSM 18.2.2. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template! Derived from Oracle-SOACS-DBCS 18.2.3-1804130567"
+    templateVersion: 2.2.1
+    templateDescription: "SOA CS (SOA/OSB) cluster with non-RAC DB CS repository. Tested with CSM 18.2.2 on OCI Classic only. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template! Derived from Oracle-SOACS-DBCS 18.2.3-1804130567"
     
     parameters:
       serviceName:
