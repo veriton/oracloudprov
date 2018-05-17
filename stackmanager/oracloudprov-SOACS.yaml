@@ -1,7 +1,7 @@
 ---
   template:
     templateName: oracloudprov-SOACS
-    templateVersion: 2.1.102
+    templateVersion: 2.1.103
     templateDescription: "OPC-1 branch: SOA CS (SOA/OSB) cluster with non-RAC DB CS repository. Tested with CSM 18.2.2. **WARNING** You will be billed for the Cloud resources created if you create a Cloud Stack from this template! Derived from Oracle-SOACS-DBCS 18.2.3-1804130567"
     
     parameters:
@@ -32,7 +32,7 @@
           "oc4m": "8 OCPUs and 120 GB memory"
          }
         customize:
-          regionType: {"Fn::If": [emptyRegion, OCICLASSIC, {"Fn::GetParam": stackRegionRegionType}]}
+          regionType: {"Fn::If": [emptyRegion, OCICLASSIC, {"Fn::GetParam": stackRegionType}]}
       wlByol:
         label: Bring Your Own License
         description: "Check this field if you wish to use your own license. If you choose this please make sure that you have proper entitlements to use for new service instances you are creating."
@@ -168,7 +168,7 @@
         mandatory: true
         default: {"Fn::If": [isOCI, VM.Standard1.1, oc3]}
         customize:
-          regionType: {"Fn::If": [emptyRegion, OCICLASSIC, {"Fn::GetParam": stackRegionRegionType}]}
+          regionType: {"Fn::If": [emptyRegion, OCICLASSIC, {"Fn::GetParam": stackRegionType}]}
       dbStorage:
         label: Usable Database Storage (GB)
         description: "Enter the value for usable Database Storage in GB. The number must be between 15 and 1200."
@@ -176,41 +176,38 @@
         default: 25
         minValue: 15
         maxValue: 200
-      stackRegionRegion:
-        # double Region name to assist later when will probably use StackRegion type
+      # StackRegion type is not allowed in custom templates so elements have been expanded into separate parameters
+      stackRegion:
         label: Region
         description: Enter Cloud Region (e.g. gbcom-south-1) or leave blank for Shared Network
-        # Region type was giving UI errors
-        #type: Region
         type: String
         customize:
           serviceType: SOA
-      stackRegionIpNetwork:
-        label: IP network
+      stackIpNetwork:
+        label: IP Network
         description: Enter IP network (e.g. /Compute-a999999/simon/gbs1-dev-1) or leave blank for Shared Network
         type: String
         customize:
           serviceType: SOA
-      # stackRegion dummy parameters that we don't need for OCI Classic but are included here to stay closed to original template
-      stackRegionRegionType:
+      stackRegionType:
         label: Region Type (unused)
         type: String
         visible: false
         customize:
           serviceType: SOA
-      stackRegionAvailabilityDomain:
+      stackAvailabilityDomain:
         label: Availability Domain (unused)
         type: String
         visible: false
         customize:
           serviceType: SOA
-      stackRegionSubnet:
+      stackSubnet:
         label: Subnet (unused)
         type: String
         visible: false
         customize:
           serviceType: SOA
-      # end of stackRegion dummy parameters
+      # end of stackRegion expanded parameters
       provisionOTD:
         label: Provision OTD
         description: Would you like to Provision OTD?
@@ -221,7 +218,7 @@
       - label: Database Cloud
         parameters: [ dbByol, dbEntitlement, dbVersion, dbComputeShape, dbStorage, dbSoftwareEdition ]
       - label: Access & Infra
-        parameters: [ allowPublicAdmin, commonPwd, publicKeyText, stackRegionRegion, stackRegionIpNetwork ]
+        parameters: [ allowPublicAdmin, commonPwd, publicKeyText, stackRegion, stackIpNetwork ]
       - label: Storage Cloud (for Backup)
         parameters: [ backupDestination, backupStorageContainer, dbBackupStorageContainer, backupStorageUser, backupStoragePassword, createBackupContainer ]
       - label: SOA Cloud
@@ -233,11 +230,11 @@
        dbcsBYOL: {"Fn::Equals": [true, "Fn::GetParam": _account.DBaaS.BYOL]}
        backupRequired: {"Fn::Equals": ["BOTH", "Fn::GetParam": backupDestination]}
        createContainer: {"Fn::If": [backupRequired, {"Fn::Equals": ["true", "Fn::GetParam": createBackupContainer]}, "false"]}
-       emptyRegion: {"Fn::Empty": {"Fn::GetParam": stackRegionRegion}}
-       emptyAd: {"Fn::Empty": {"Fn::GetParam": stackRegionAvailabilityDomain}}
-       emptySubnet: {"Fn::Empty": {"Fn::GetParam": stackRegionSubnet}}
-       emptyIpNetwork: {"Fn::Empty": {"Fn::GetParam": stackRegionIpNetwork}}
-       isOCI: {"Fn::Equals": [OCI, "Fn::GetParam": stackRegionRegionType]}
+       emptyRegion: {"Fn::Empty": {"Fn::GetParam": stackRegion}}
+       emptyAd: {"Fn::Empty": {"Fn::GetParam": stackAvailabilityDomain}}
+       emptySubnet: {"Fn::Empty": {"Fn::GetParam": stackSubnet}}
+       emptyIpNetwork: {"Fn::Empty": {"Fn::GetParam": stackIpNetwork}}
+       isOCI: {"Fn::Equals": [OCI, "Fn::GetParam": stackRegionType]}
        isUCM: {"Fn::Equals": [true, "Fn::GetParam": _account.soa.commitmodelaccount]}
     resources:
       backupContainer:
@@ -259,10 +256,10 @@
           vmPublicKeyText: { "Fn::GetParam": publicKeyText }
           isBYOL: { "Fn::If": [dbcsBYOL, {"Fn::GetParam": dbByol}, "OPC::NoValue" ]}
           serviceEntitlementId: { "Fn::If": [dbcsMultEntitl, {"Fn::GetParam": dbEntitlement}, "OPC::NoValue" ]}
-          subnet: { "Fn::If": [emptySubnet, "OPC::NoValue", { "Fn::GetParam": stackRegionSubnet } ]}
-          ipNetwork: { "Fn::If": [emptyIpNetwork, "OPC::NoValue", { "Fn::GetParam": stackRegionIpNetwork } ]}
-          availabilityDomain: { "Fn::If": [emptyAd, "OPC::NoValue", { "Fn::GetParam": stackRegionAvailabilityDomain } ]}
-          region: { "Fn::If": [emptyRegion, "OPC::NoValue", { "Fn::GetParam": stackRegionRegion } ]}
+          subnet: { "Fn::If": [emptySubnet, "OPC::NoValue", { "Fn::GetParam": stackSubnet } ]}
+          ipNetwork: { "Fn::If": [emptyIpNetwork, "OPC::NoValue", { "Fn::GetParam": stackIpNetwork } ]}
+          availabilityDomain: { "Fn::If": [emptyAd, "OPC::NoValue", { "Fn::GetParam": stackAvailabilityDomain } ]}
+          region: { "Fn::If": [emptyRegion, "OPC::NoValue", { "Fn::GetParam": stackRegion } ]}
           parameters:
             - 
               type: db
@@ -294,10 +291,10 @@
           cloudStoragePassword:  { "Fn::GetParam": backupStoragePassword }
           provisionOTD: {"Fn::GetParam": provisionOTD}
           meteringFrequency: { "Fn::If": [isUCM,"HOURLY","MONTHLY"]}
-          subnet: { "Fn::If": [emptySubnet, "OPC::NoValue", { "Fn::GetParam": stackRegion.subnet } ]}
-          ipNetwork: { "Fn::If": [emptyIpNetwork, "OPC::NoValue", { "Fn::GetParam": stackRegionIpNetwork } ]}
-          availabilityDomain: { "Fn::If": [emptyAd, "OPC::NoValue", { "Fn::GetParam": stackRegionAvailabilityDomain } ]}
-          region: { "Fn::If": [emptyRegion, "OPC::NoValue", { "Fn::GetParam": stackRegionRegion } ]}
+          subnet: { "Fn::If": [emptySubnet, "OPC::NoValue", { "Fn::GetParam": stackSubnet } ]}
+          ipNetwork: { "Fn::If": [emptyIpNetwork, "OPC::NoValue", { "Fn::GetParam": stackIpNetwork } ]}
+          availabilityDomain: { "Fn::If": [emptyAd, "OPC::NoValue", { "Fn::GetParam": stackAvailabilityDomain } ]}
+          region: { "Fn::If": [emptyRegion, "OPC::NoValue", { "Fn::GetParam": stackRegion } ]}
           isBYOL: { "Fn::If": [jcsBYOL, {"Fn::GetParam": wlByol}, "OPC::NoValue" ]}
           components:  
              WLS:
